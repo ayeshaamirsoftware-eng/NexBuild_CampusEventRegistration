@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Event;
 use App\Models\EventCategory;
+use App\Models\EventRegistration;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -92,6 +93,39 @@ class EventSeeder extends Seeder
                     'status' => $event['status'],
                 ],
             );
+        }
+
+        $student = User::query()
+            ->where('email', 'student1@campus.edu')
+            ->first();
+
+        if ($student) {
+            $innovation = Event::query()->where('title', 'Campus Innovation Expo')->first();
+            $picnic = Event::query()->where('title', 'Welcome Week Picnic')->first();
+            $careerFair = Event::query()->where('title', 'Career Networking Fair')->first();
+
+            if ($innovation) {
+                $innovation->update(['available_seats' => 0]);
+                EventRegistration::query()->updateOrCreate(
+                    ['event_id' => $innovation->id, 'user_id' => $student->id],
+                    ['status' => 'confirmed'],
+                );
+            }
+
+            if ($picnic) {
+                $picnic->update(['available_seats' => 0]);
+                EventRegistration::query()->updateOrCreate(
+                    ['event_id' => $picnic->id, 'user_id' => $student->id],
+                    ['status' => 'waitlisted'],
+                );
+            }
+
+            if ($careerFair) {
+                EventRegistration::query()->updateOrCreate(
+                    ['event_id' => $careerFair->id, 'user_id' => $student->id],
+                    ['status' => 'cancelled'],
+                );
+            }
         }
     }
 }

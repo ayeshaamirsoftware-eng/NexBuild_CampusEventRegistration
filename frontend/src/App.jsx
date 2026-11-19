@@ -5,8 +5,10 @@ import {
   AlertCircle, ArrowRight, Bell, CalendarDays, CheckCircle2, ChevronRight,
   Clock3, GraduationCap, LogOut, MapPin, Menu, Search, ShieldCheck,
   Ticket, Timer, Users, X, Eye, EyeOff, Building2, Sparkles,
-  Plus, Pencil, SlidersHorizontal, UserCheck, RotateCcw
+  Plus, Pencil, SlidersHorizontal, UserCheck
 } from 'lucide-react'
+import { ThemeToggle } from './components/ui/ThemeToggle'
+import { Button, Card, EmptyState, ConfirmDialog, Drawer, StatCard, ToastIcon } from './components/ui'
 
 const API_URL = 'http://127.0.0.1:8000/api'
 const api = axios.create({ baseURL: API_URL })
@@ -34,6 +36,11 @@ function AuthProvider({ children }) {
           localStorage.removeItem('nexbuild_user')
           setUser(null)
           if (!window.location.pathname.startsWith('/login')) window.location.assign('/login')
+        }
+        if (error.response?.status === 403) {
+          window.dispatchEvent(new CustomEvent('campus-api-message', {
+            detail: { message: 'You do not have permission to perform this action.', type: 'error' },
+          }))
         }
         return Promise.reject(error)
       },
@@ -81,16 +88,19 @@ function ToastProvider({ children }) {
     setToasts((items) => [...items, { id, message, type }])
     setTimeout(() => setToasts((items) => items.filter((item) => item.id !== id)), 4200)
   }
+  useEffect(() => {
+    const handleMessage = (event) => push(event.detail.message, event.detail.type || 'error')
+    window.addEventListener('campus-api-message', handleMessage)
+    return () => window.removeEventListener('campus-api-message', handleMessage)
+  }, [])
   return (
     <ToastContext.Provider value={push}>
       {children}
       <div className="fixed bottom-5 right-5 z-[100] flex w-[calc(100%-2.5rem)] max-w-sm flex-col gap-3">
         {toasts.map((toast) => (
-          <div key={toast.id} className="toast-enter flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-900/10">
-            {toast.type === 'error'
-              ? <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
-              : <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />}
-            <p className="text-sm font-semibold leading-5 text-slate-800">{toast.message}</p>
+          <div key={toast.id} className="toast-enter flex items-start gap-3 rounded-2xl border border-border bg-surface-raised p-4 shadow-raised">
+            <ToastIcon type={toast.type} />
+            <p className="text-sm font-semibold leading-5 text-text-primary">{toast.message}</p>
           </div>
         ))}
       </div>
@@ -102,10 +112,10 @@ const useToast = () => useContext(ToastContext)
 function Brand({ light = false }) {
   return (
     <Link to="/" className="flex items-center gap-2.5" aria-label="NexBuild home">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-brand-foreground shadow-lg shadow-brand/20">
         <GraduationCap className="h-6 w-6" />
       </span>
-      <span className={`font-display text-lg font-extrabold tracking-tight ${light ? 'text-white' : 'text-slate-950'}`}>NexBuild</span>
+      <span className={`font-display text-lg font-extrabold tracking-tight ${light ? 'text-white' : 'text-text-primary'}`}>NexBuild</span>
     </Link>
   )
 }
@@ -116,30 +126,34 @@ function Navbar() {
   const [open, setOpen] = useState(false)
   const signOut = async () => { await logout(); navigate('/login') }
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-border/80 bg-surface-raised/95 backdrop-blur-md">
       <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 lg:px-8">
         <Brand />
         {user && (
           <nav className="hidden items-center gap-1 md:flex">
-            <NavLink to="/" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-950'}`}>Discover Events</NavLink>
+            <NavLink to="/" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-brand/10 text-brand' : 'text-text-muted hover:text-text-primary'}`}>Discover Events</NavLink>
             {user.role === 'student'
-              ? <NavLink to="/my-registrations" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-950'}`}>My Registrations</NavLink>
-              : <NavLink to="/organizer" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-950'}`}>Organizer Studio</NavLink>}
+              ? <NavLink to="/my-registrations" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-brand/10 text-brand' : 'text-text-muted hover:text-text-primary'}`}>My Registrations</NavLink>
+              : <NavLink to="/organizer" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-brand/10 text-brand' : 'text-text-muted hover:text-text-primary'}`}>Organizer Studio</NavLink>}
           </nav>
         )}
         <div className="hidden items-center gap-3 md:flex">
           {user ? (
             <>
-              <button className="grid h-9 w-9 place-items-center rounded-full text-slate-500 hover:bg-slate-100" aria-label="Notifications"><Bell className="h-5 w-5" /></button>
+              <ThemeToggle compact />
+              <button className="grid h-9 w-9 place-items-center rounded-full text-text-muted hover:bg-surface hover:text-text-primary" aria-label="Notifications"><Bell className="h-5 w-5" /></button>
               <div className="text-right">
-                <p className="text-sm font-bold text-slate-900">{user.name}</p>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">{user.role}</p>
+                <p className="text-sm font-bold text-text-primary">{user.name}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-brand">{user.role === 'student' ? 'Member' : user.role}</p>
               </div>
-              <button onClick={signOut} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600" aria-label="Sign out"><LogOut className="h-4 w-4" /></button>
+              <button onClick={signOut} className="grid h-9 w-9 place-items-center rounded-lg border border-border text-text-muted hover:border-danger/30 hover:bg-danger/10 hover:text-danger" aria-label="Sign out"><LogOut className="h-4 w-4" /></button>
             </>
           ) : <Link to="/login" className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700">Sign in</Link>}
         </div>
-        <button onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 md:hidden" aria-label="Open menu"><Menu className="h-5 w-5" /></button>
+        <div className="flex items-center gap-2 md:hidden">
+          {user && <ThemeToggle compact />}
+          <button onClick={() => setOpen(!open)} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 md:hidden" aria-label="Open menu"><Menu className="h-5 w-5" /></button>
+        </div>
       </div>
       {open && user && (
         <div className="border-t border-slate-100 bg-white px-5 py-4 md:hidden">
@@ -190,7 +204,7 @@ function AuthLayout({ mode }) {
   const demo = async (role) => {
     const email = role === 'organizer' ? 'organizer@campus.edu' : 'student1@campus.edu'
     setForm((old) => ({ ...old, email, password: 'password' }))
-    try { await login(email, 'password'); push(`${role === 'organizer' ? 'Organizer' : 'Student'} demo opened.`); navigate('/') }
+    try { await login(email, 'password'); push(`${role === 'organizer' ? 'Organizer' : 'Explorer'} demo opened.`); navigate('/') }
     catch { push('Demo sign-in failed. Make sure the backend is running.', 'error') }
   }
 
@@ -200,20 +214,21 @@ function AuthLayout({ mode }) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(79,70,229,.28),transparent_28%),radial-gradient(circle_at_80%_80%,rgba(16,185,129,.12),transparent_30%)]" />
         <div className="relative"><Brand light /></div>
         <div className="relative my-auto max-w-xl">
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-indigo-200"><Sparkles className="h-3.5 w-3.5" /> Campus life, all in one place</span>
-          <h1 className="font-display text-5xl font-extrabold leading-[1.08] tracking-tight text-white">Discover events.<br />Own your campus.</h1>
-          <p className="mt-6 max-w-md text-lg leading-8 text-slate-300">Find opportunities, track seats live, and never miss a moment that matters.</p>
+          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-indigo-200"><Sparkles className="h-3.5 w-3.5" /> Good times, great people</span>
+          <h1 className="font-display text-5xl font-extrabold leading-[1.08] tracking-tight text-white">Find your next thing.<br />Meet your people.</h1>
+          <p className="mt-6 max-w-md text-lg leading-8 text-slate-300">Discover gatherings, track seat availability, and make every week more memorable.</p>
           <div className="mt-10 grid max-w-lg grid-cols-3 gap-3">
-            {[['12+', 'live events'], ['2.4k', 'students'], ['98%', 'seat accuracy']].map(([value, label]) => (
+            {[['12+', 'live events'], ['2.4k', 'members'], ['98%', 'seat accuracy']].map(([value, label]) => (
               <div key={label} className="rounded-2xl border border-white/10 bg-white/[.06] p-4 backdrop-blur-sm">
                 <p className="font-display text-xl font-bold text-white">{value}</p><p className="mt-1 text-xs text-slate-400">{label}</p>
               </div>
             ))}
           </div>
         </div>
-        <p className="relative text-xs text-slate-500">© 2026 NexBuild Campus Events</p>
+        <p className="relative text-xs text-slate-500">© 2026 NexBuild Community</p>
       </aside>
-      <main className="grid place-items-center bg-slate-50 px-5 py-10">
+      <main className="relative grid place-items-center bg-slate-50 px-5 py-10">
+        <div className="absolute right-5 top-5"><ThemeToggle compact /></div>
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden"><Brand /></div>
           <div className="mb-8">
@@ -234,8 +249,8 @@ function AuthLayout({ mode }) {
               <div className="mt-6">
                 <div className="mb-3 flex items-center gap-3"><div className="h-px flex-1 bg-slate-200" /><span className="text-xs font-semibold text-slate-400">Quick demo access</span><div className="h-px flex-1 bg-slate-200" /></div>
                 <div className="grid grid-cols-2 gap-3">
-                  <button type="button" onClick={() => demo('organizer')} className="rounded-xl border border-slate-200 px-3 py-3 text-left hover:border-indigo-300 hover:bg-indigo-50"><span className="block text-sm font-bold text-slate-800">Organizer Demo</span><span className="mt-1 block text-[11px] text-slate-500">Manage campus events</span></button>
-                  <button type="button" onClick={() => demo('student')} className="rounded-xl border border-slate-200 px-3 py-3 text-left hover:border-indigo-300 hover:bg-indigo-50"><span className="block text-sm font-bold text-slate-800">Student Demo</span><span className="mt-1 block text-[11px] text-slate-500">Discover & register</span></button>
+                  <button type="button" onClick={() => demo('organizer')} className="rounded-xl border border-slate-200 px-3 py-3 text-left hover:border-indigo-300 hover:bg-indigo-50"><span className="block text-sm font-bold text-slate-800">Organizer Demo</span><span className="mt-1 block text-[11px] text-slate-500">Manage community events</span></button>
+                  <button type="button" onClick={() => demo('student')} className="rounded-xl border border-slate-200 px-3 py-3 text-left hover:border-indigo-300 hover:bg-indigo-50"><span className="block text-sm font-bold text-slate-800">Explorer Demo</span><span className="mt-1 block text-[11px] text-slate-500">Discover & join</span></button>
                 </div>
               </div>
             )}
@@ -274,12 +289,12 @@ const dateTime = (value) => value ? new Intl.DateTimeFormat('en-US', {
 
 function StatusPill({ event }) {
   if (new Date(event.registration_deadline) < new Date()) {
-    return <span className="inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600">Deadline Passed</span>
+    return <span className="inline-flex items-center rounded-full border border-rose-200/70 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700">Registration Closed</span>
   }
   if (event.available_seats <= 0) {
-    return <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Waitlist Open</span>
+    return <span className="inline-flex items-center rounded-full border border-amber-200/80 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Waitlist Active</span>
   }
-  return <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{event.available_seats} Seats Left</span>
+  return <span className="inline-flex items-center rounded-full border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Spots Open</span>
 }
 
 function SkeletonCard() {
@@ -297,28 +312,27 @@ function EventCard({ event }) {
   const filled = event.capacity ? Math.max(0, event.capacity - event.available_seats) : 0
   const percent = event.capacity ? Math.round((filled / event.capacity) * 100) : 0
   return (
-    <Link to={`/events/${event.id}`} className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md">
-      <div className="relative h-40 overflow-hidden bg-slate-900">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(129,140,248,.55),transparent_28%),linear-gradient(135deg,#1e1b4b,#4338ca)]" />
-        <div className="absolute -bottom-8 -right-8 h-32 w-32 rounded-full border-[24px] border-white/5" />
-        <div className="absolute left-5 top-5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-bold text-white backdrop-blur-md">
-          {event.category?.name || 'Campus Event'}
-        </div>
-        <div className="absolute bottom-4 right-4 grid h-14 w-14 place-items-center rounded-2xl border border-white/20 bg-white/10 text-center text-white backdrop-blur-md">
-          <div><span className="block text-[10px] font-bold uppercase">{formatDate(event.event_date, { year: undefined, month: 'short' }).split(' ')[0]}</span><strong className="font-display text-xl leading-none">{new Date(event.event_date).getDate()}</strong></div>
-        </div>
+    <Link to={`/events/${event.id}`} className="group overflow-hidden rounded-2xl border border-border/75 bg-surface-raised shadow-soft transition duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-raised">
+      <div className="flex h-[72px] items-center justify-between border-b border-border/70 bg-surface px-5">
+        <span className="rounded-full border border-brand/20 bg-brand/10 px-2.5 py-1 text-[11px] font-bold text-brand">{event.category?.name || 'Community Event'}</span>
+        <div className="flex items-baseline gap-1.5 text-text-primary"><span className="text-xs font-bold uppercase text-text-muted">{formatDate(event.event_date, { year: undefined }).split(' ')[0]}</span><strong className="tabular-nums font-display text-xl leading-none">{new Date(event.event_date).getDate()}</strong></div>
       </div>
       <div className="p-5">
         <div className="flex items-center justify-between gap-3">
           <StatusPill event={event} />
           <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-indigo-600" />
         </div>
-        <h3 className="mt-3 font-display text-lg font-extrabold leading-snug text-slate-950">{event.title}</h3>
-        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{event.description}</p>
-        <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-600"><MapPin className="h-4 w-4 text-indigo-500" />{event.location}</div>
+        <h3 className="mt-3 font-display text-lg font-extrabold leading-snug text-text-primary">{event.title}</h3>
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-text-muted">{event.description}</p>
+        <div className="mt-4 space-y-2 text-xs font-semibold text-text-muted">
+          <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-brand" /><span className="tabular-nums">{dateTime(event.event_date)}</span></div>
+          <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-brand" /><span>{event.location}</span></div>
+          <div className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-brand" /><span>{event.organizer?.name || 'Community Hosts'}</span></div>
+        </div>
         <div className="mt-5">
-          <div className="mb-2 flex justify-between text-xs"><span className="font-semibold text-slate-500">{filled} / {event.capacity} seats filled</span><span className="font-bold text-slate-700">{percent}%</span></div>
-          <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${percent}%` }} /></div>
+          <div className="mb-2 flex justify-between text-xs tabular-nums"><span className="font-semibold text-text-muted"><strong className="text-text-primary">{event.available_seats}</strong> remaining</span><span className="font-bold text-text-muted">{percent}% filled</span></div>
+          <div className="h-2 overflow-hidden rounded-full bg-surface"><div className="h-full rounded-full bg-brand transition-all" style={{ width: `${percent}%` }} /></div>
+          <p className="mt-2 text-[11px] text-text-muted tabular-nums">{filled} confirmed · {event.capacity} total seats</p>
         </div>
       </div>
     </Link>
@@ -331,6 +345,7 @@ function Discover() {
   const [categories, setCategories] = useState([])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
+  const [sort, setSort] = useState('soonest')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -344,7 +359,9 @@ function Discover() {
     const matchesSearch = !search || `${event.title} ${event.description} ${event.location}`.toLowerCase().includes(search.toLowerCase())
     const matchesCategory = !category || event.category_id === Number(category)
     return matchesSearch && matchesCategory
-  }), [events, search, category])
+  }).sort((a, b) => sort === 'seats'
+    ? Number(b.available_seats) - Number(a.available_seats)
+    : new Date(a.event_date) - new Date(b.event_date)), [events, search, category, sort])
 
   return (
     <main className="min-h-[calc(100vh-72px)]">
@@ -352,9 +369,9 @@ function Discover() {
         <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8 lg:py-12">
           <div className="grid items-end gap-8 lg:grid-cols-[1fr_auto]">
             <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">Student portal</p>
-              <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">Good to see you, {user?.name?.split(' ')[0] || 'Student'}.</h1>
-              <p className="mt-3 text-sm text-slate-500 sm:text-base">Explore what’s happening across campus this season.</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-brand">Discover</p>
+              <h1 className="font-display text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">Good to see you, {user?.name?.split(' ')[0] === 'Student' ? 'Explorer' : user?.name?.split(' ')[0] || 'Explorer'}.</h1>
+              <p className="mt-3 text-sm text-text-muted sm:text-base">Explore what’s happening around your community this season.</p>
             </div>
             <div className="grid grid-cols-3 gap-3">
               {[['Live events', events.length], ['Categories', categories.length], ['Seats left', events.reduce((sum, event) => sum + event.available_seats, 0)]].map(([label, value]) => (
@@ -365,9 +382,16 @@ function Discover() {
           <div className="mt-8 flex flex-col gap-3 md:flex-row">
             <label className="relative flex-1">
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search events, topics, or locations..." className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search events, topics, or locations..." className="h-12 w-full rounded-xl border border-slate-200/75 bg-slate-50 pl-12 pr-11 text-sm outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50" />
+              {search && <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Clear search"><X className="h-4 w-4" /></button>}
             </label>
-            <button className="flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"><CalendarDays className="h-4 w-4 text-indigo-600" /> This semester</button>
+            <label className="relative">
+              <SlidersHorizontal className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-600" />
+              <select value={sort} onChange={(e) => setSort(e.target.value)} className="h-12 appearance-none rounded-xl border border-slate-200/75 bg-white pl-10 pr-9 text-sm font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50">
+                <option value="soonest">Soonest Event</option>
+                <option value="seats">Most Seats Left</option>
+              </select>
+            </label>
           </div>
         </div>
       </section>
@@ -380,29 +404,19 @@ function Discover() {
         </div>
         {loading ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{[1,2,3].map((item) => <SkeletonCard key={item} />)}</div>
           : filtered.length ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{filtered.map((event) => <EventCard key={event.id} event={event} />)}</div>
-          : <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-slate-300 bg-white text-center">
-              <div><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-indigo-50"><Search className="h-7 w-7 text-indigo-500" /></div><h3 className="mt-5 font-display text-xl font-extrabold text-slate-900">No events found</h3><p className="mt-2 text-sm text-slate-500">Try another category or a broader search.</p></div>
-            </div>}
+          : <EmptyState
+              icon={Search}
+              title="No events found"
+              description="Try another category or a broader search."
+              action={<Button variant="secondary" onClick={() => { setSearch(''); setCategory('') }}>Clear filters</Button>}
+            />}
       </section>
     </main>
   )
 }
 
-function ConfirmModal({ open, onClose, onConfirm, title, description }) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/40 px-5 backdrop-blur-sm" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
-        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-rose-50"><AlertCircle className="h-6 w-6 text-rose-600" /></div>
-        <h3 className="mt-5 font-display text-xl font-extrabold text-slate-950">{title}</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
-        <div className="mt-6 flex justify-end gap-3">
-          <button onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Keep registration</button>
-          <button onClick={onConfirm} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700">Cancel registration</button>
-        </div>
-      </div>
-    </div>
-  )
+function ConfirmModal({ open, onClose, onConfirm, title, description, busy = false }) {
+  return <ConfirmDialog open={open} onClose={onClose} onConfirm={onConfirm} title={title} description={description} confirmLabel="Cancel registration" busy={busy} />
 }
 
 function EventDetail() {
@@ -448,6 +462,7 @@ function EventDetail() {
   const filled = event.capacity - event.available_seats
   const percent = event.capacity ? Math.round((filled / event.capacity) * 100) : 0
   const deadlinePassed = new Date(event.registration_deadline) < new Date()
+  const cancellationPassed = new Date(event.cancellation_deadline) < new Date()
   const status = event.registration_status
   return (
     <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10">
@@ -465,17 +480,22 @@ function EventDetail() {
             <div className="mt-5 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-600">
               <span className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-indigo-600" />{dateTime(event.event_date)}</span>
               <span className="flex items-center gap-2"><MapPin className="h-4 w-4 text-indigo-600" />{event.location}</span>
+              <span className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-indigo-600" />{event.organizer?.name || 'Community Hosts'}</span>
             </div>
             <div className="my-7 h-px bg-slate-100" />
             <h2 className="font-display text-xl font-extrabold text-slate-950">About this event</h2>
             <p className="mt-3 leading-7 text-slate-600">{event.description}</p>
             <h2 className="mt-8 font-display text-xl font-extrabold text-slate-950">Schedule & venue</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="flex gap-3 rounded-2xl border border-slate-200 p-4"><Clock3 className="mt-0.5 h-5 w-5 text-indigo-600" /><div><p className="text-xs font-bold uppercase text-slate-400">Date & time</p><p className="mt-1 text-sm font-bold text-slate-800">{dateTime(event.event_date)}</p></div></div>
-              <div className="flex gap-3 rounded-2xl border border-slate-200 p-4"><Building2 className="mt-0.5 h-5 w-5 text-indigo-600" /><div><p className="text-xs font-bold uppercase text-slate-400">Venue</p><p className="mt-1 text-sm font-bold text-slate-800">{event.location}</p></div></div>
+              <div className="flex gap-3 rounded-2xl border border-slate-200/75 bg-slate-50/60 p-4"><Clock3 className="mt-0.5 h-5 w-5 text-indigo-600" /><div><p className="text-xs font-bold uppercase text-slate-400">Date & time</p><p className="mt-1 text-sm font-bold text-slate-800 tabular-nums">{dateTime(event.event_date)}</p></div></div>
+              <div className="flex gap-3 rounded-2xl border border-slate-200/75 bg-slate-50/60 p-4"><Building2 className="mt-0.5 h-5 w-5 text-indigo-600" /><div><p className="text-xs font-bold uppercase text-slate-400">Venue</p><p className="mt-1 text-sm font-bold text-slate-800">{event.location}</p></div></div>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-indigo-200/70 bg-indigo-50/60 p-4"><p className="text-xs font-bold uppercase text-indigo-500">Registration deadline</p><p className="mt-2 text-sm font-bold text-indigo-950 tabular-nums">{dateTime(event.registration_deadline)}</p></div>
+              <div className="rounded-2xl border border-slate-200/75 bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-400">Cancellation deadline</p><p className="mt-2 text-sm font-bold text-slate-800 tabular-nums">{dateTime(event.cancellation_deadline)}</p></div>
             </div>
             <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-              <div className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-amber-700" /><div><h3 className="font-display text-sm font-extrabold text-amber-950">Registration & cancellation policy</h3><p className="mt-2 text-sm leading-6 text-amber-900/75">Registration closes {dateTime(event.registration_deadline)}. Cancellation is available until {dateTime(event.cancellation_deadline)}. Waitlisted students move into confirmed seats when one becomes available.</p></div></div>
+              <div className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-amber-700" /><div><h3 className="font-display text-sm font-extrabold text-amber-950">Registration & cancellation policy</h3><p className="mt-2 text-sm leading-6 text-amber-900/75">Registration closes {dateTime(event.registration_deadline)}. Cancellation is available until {dateTime(event.cancellation_deadline)}. Waitlisted members move into confirmed seats when one becomes available.</p></div></div>
             </div>
           </div>
         </div>
@@ -492,7 +512,7 @@ function EventDetail() {
             </div>
             <div className="mt-5 flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-xs font-semibold text-slate-600"><Timer className="h-4 w-4 text-indigo-500" /><span>Registration closes <strong>{dateTime(event.registration_deadline)}</strong></span></div>
             {status === 'confirmed' || status === 'waitlisted'
-              ? <button onClick={() => setConfirmOpen(true)} disabled={busy} className="mt-5 h-12 w-full rounded-xl border border-rose-200 bg-rose-50 text-sm font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-60">{busy ? 'Please wait...' : 'Cancel Registration'}</button>
+              ? <button onClick={() => setConfirmOpen(true)} disabled={busy || cancellationPassed} className="mt-5 h-12 w-full rounded-xl border border-rose-200/80 bg-rose-50 text-sm font-bold text-rose-700 hover:bg-rose-100 disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400">{busy ? 'Please wait...' : cancellationPassed ? 'Cancellation Closed' : 'Cancel Registration'}</button>
               : <button onClick={register} disabled={busy || deadlinePassed} className="mt-5 h-12 w-full rounded-xl bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-600/15 hover:bg-indigo-700 disabled:bg-slate-300 disabled:shadow-none">
                   {busy ? 'Please wait...' : deadlinePassed ? 'Deadline Passed' : event.available_seats > 0 ? 'Confirm My Seat' : 'Join Priority Waitlist'}
                 </button>}
@@ -500,7 +520,7 @@ function EventDetail() {
           </div>
         </aside>
       </div>
-      <ConfirmModal open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={cancel} title="Cancel this registration?" description="This will release your place. If you're confirmed, the next student on the waitlist may be promoted automatically." />
+      <ConfirmModal open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={cancel} busy={busy} title="Cancel this registration?" description="This will release your place. If you're confirmed, the next student on the waitlist may be promoted automatically." />
     </main>
   )
 }
@@ -511,11 +531,13 @@ function MyRegistrations() {
   const [filter, setFilter] = useState('All')
   const [loading, setLoading] = useState(true)
   const [target, setTarget] = useState(null)
+  const [cancelling, setCancelling] = useState(false)
 
   const load = () => api.get('/my-registrations').then((res) => setRegistrations(res.data)).finally(() => setLoading(false))
   useEffect(() => { load().catch(() => push('Unable to load registrations.', 'error')) }, [])
 
   const cancel = async () => {
+    setCancelling(true)
     try {
       await api.post(`/events/${target.event_id}/cancel`)
       push('Registration cancelled.')
@@ -523,11 +545,13 @@ function MyRegistrations() {
       await load()
     } catch (error) {
       push(error.response?.data?.message || 'Cancellation failed.', 'error')
-    }
+    } finally { setCancelling(false) }
   }
 
   const labels = { All: 'All', confirmed: 'Confirmed', waitlisted: 'Waitlisted', cancelled: 'Cancelled' }
   const visible = registrations.filter((item) => filter === 'All' || item.status === filter.toLowerCase())
+  const upcoming = visible.filter((item) => new Date(item.event?.event_date) >= new Date())
+  const past = visible.filter((item) => new Date(item.event?.event_date) < new Date())
 
   return (
     <main className="mx-auto min-h-[calc(100vh-72px)] max-w-7xl px-5 py-10 lg:px-8">
@@ -541,31 +565,36 @@ function MyRegistrations() {
         ))}
       </div>
       {loading ? <div className="mt-6 grid gap-4">{[1,2].map((item) => <div key={item} className="h-32 animate-pulse rounded-2xl bg-slate-200" />)}</div>
-        : visible.length ? <div className="mt-6 grid gap-4">
-            {visible.map((item) => (
-              <div key={item.id} className="grid items-center gap-5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:grid-cols-[72px_1fr_auto]">
+        : visible.length ? <div className="mt-6 space-y-8">
+            {[['Upcoming', upcoming], ['Past', past]].map(([heading, items]) => items.length > 0 && (
+              <section key={heading}>
+                <div className="mb-3 flex items-center gap-3"><h2 className="font-display text-sm font-extrabold text-text-primary">{heading}</h2><span className="tabular-nums rounded-full border border-border bg-surface-raised px-2 py-0.5 text-[10px] font-bold text-text-muted">{items.length}</span></div>
+                <div className="grid gap-3">{items.map((item) => (
+              <Card key={item.id} className="grid items-center gap-5 p-5 sm:grid-cols-[72px_1fr_auto]">
                 <div className="grid h-16 w-16 place-items-center rounded-2xl bg-indigo-50 text-indigo-600"><CalendarDays className="h-7 w-7" /></div>
                 <div><div className="mb-2"><RegistrationStatus status={item.status} /></div><h3 className="font-display text-lg font-extrabold text-slate-950">{item.event?.title}</h3><div className="mt-2 flex flex-wrap gap-4 text-xs font-semibold text-slate-500"><span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{dateTime(item.event?.event_date)}</span><span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{item.event?.location}</span></div></div>
                 <div className="flex gap-2 sm:justify-end">
                   <Link to={`/events/${item.event_id}`} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-600">View event</Link>
-                  {(item.status === 'confirmed' || item.status === 'waitlisted') && <button onClick={() => setTarget(item)} className="rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50">Cancel</button>}
+                  {(item.status === 'confirmed' || item.status === 'waitlisted') && <button onClick={() => setTarget(item)} disabled={new Date(item.event?.cancellation_deadline) < new Date()} className="rounded-xl border border-rose-200/80 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-transparent">{new Date(item.event?.cancellation_deadline) < new Date() ? 'Closed' : 'Cancel'}</button>}
                 </div>
-              </div>
+              </Card>
+                ))}</div>
+              </section>
             ))}
           </div>
-        : <div className="mt-8 grid min-h-72 place-items-center rounded-3xl border border-dashed border-slate-300 bg-white text-center"><div><Ticket className="mx-auto h-10 w-10 text-slate-300" /><h3 className="mt-4 font-display text-lg font-extrabold text-slate-900">No registrations here</h3><Link to="/" className="mt-3 inline-block text-sm font-bold text-indigo-600">Discover events</Link></div></div>}
-      <ConfirmModal open={!!target} onClose={() => setTarget(null)} onConfirm={cancel} title="Cancel this registration?" description="This will release your place and notify you of the updated status." />
+        : <div className="mt-8"><EmptyState icon={Ticket} title="No registrations here" description="Find an event and reserve your seat." action={<Link to="/" className="inline-flex h-10 items-center rounded-xl bg-brand px-4 text-sm font-bold text-brand-foreground">Discover events</Link>} /></div>}
+      <ConfirmModal open={!!target} onClose={() => setTarget(null)} onConfirm={cancel} busy={cancelling} title="Cancel this registration?" description="This will release your place and notify you of the updated status." />
     </main>
   )
 }
 
 function RegistrationStatus({ status }) {
   const styles = {
-    confirmed: 'bg-emerald-50 text-emerald-700',
-    waitlisted: 'bg-amber-50 text-amber-700',
-    cancelled: 'bg-rose-50 text-rose-600',
+    confirmed: 'border-emerald-200/80 bg-emerald-50 text-emerald-700',
+    waitlisted: 'border-amber-200/80 bg-amber-50 text-amber-700',
+    cancelled: 'border-rose-200/80 bg-rose-50 text-rose-700',
   }
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${styles[status] || 'bg-slate-100 text-slate-600'}`}>{status}</span>
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold capitalize ${styles[status] || 'border-slate-200/80 bg-slate-100 text-slate-600'}`}>{status}</span>
 }
 
 function ProtectedRoute({ children, role }) {
@@ -593,11 +622,11 @@ function AppShell() {
 
 function EventStatusBadge({ status }) {
   const styles = {
-    draft: 'bg-slate-100 text-slate-600',
-    published: 'bg-emerald-50 text-emerald-700',
-    closed: 'bg-rose-50 text-rose-600',
+    draft: 'border-slate-200/80 bg-slate-100 text-slate-600',
+    published: 'border-emerald-200/80 bg-emerald-50 text-emerald-700',
+    closed: 'border-rose-200/80 bg-rose-50 text-rose-700',
   }
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${styles[status] || styles.draft}`}>{status}</span>
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold capitalize ${styles[status] || styles.draft}`}>{status}</span>
 }
 
 function toDateTimeLocal(value) {
@@ -674,14 +703,19 @@ function EventDrawer({ open, event, categories, onClose, onSaved }) {
 
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-[70]">
-      <button className="absolute inset-0 bg-slate-950/35 backdrop-blur-sm" onClick={onClose} aria-label="Close drawer" />
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-          <div><p className="text-xs font-bold uppercase tracking-wider text-indigo-600">Organizer Studio</p><h2 className="mt-1 font-display text-xl font-extrabold text-slate-950">{event ? 'Edit event' : 'Create new event'}</h2></div>
-          <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50" aria-label="Close"><X className="h-5 w-5" /></button>
-        </div>
-        <form onSubmit={submit} noValidate className="flex-1 overflow-y-auto px-6 py-6">
+    <Drawer
+      open={open}
+      onClose={onClose}
+      eyebrow="Organizer Studio"
+      title={event ? 'Edit event' : 'Create new event'}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} loading={saving}>{event ? 'Save changes' : 'Create event'}<ArrowRight className="h-4 w-4" /></Button>
+        </>
+      }
+    >
+        <form onSubmit={submit} noValidate className="px-6 py-6">
           <DrawerField label="Event title" value={form.title} onChange={(v) => setValue('title', v)} error={errors.title} placeholder="Campus Innovation Expo" />
           <label className="mb-5 block"><span className="mb-2 block text-sm font-bold text-slate-700">Category</span><select value={form.category_id} onChange={(e) => setValue('category_id', e.target.value)} className={`h-12 w-full rounded-xl border bg-white px-4 text-sm outline-none ${errors.category_id ? 'border-rose-400 ring-4 ring-rose-50' : 'border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50'}`}><option value="">Select category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>{errors.category_id && <InlineError message={errors.category_id} />}</label>
           <label className="mb-5 block"><span className="mb-2 block text-sm font-bold text-slate-700">Description</span><textarea rows="4" value={form.description} onChange={(e) => setValue('description', e.target.value)} placeholder="Describe this event..." className={`w-full resize-none rounded-xl border px-4 py-3 text-sm outline-none ${errors.description ? 'border-rose-400 ring-4 ring-rose-50' : 'border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50'}`} />{errors.description && <InlineError message={errors.description} />}</label>
@@ -693,9 +727,7 @@ function EventDrawer({ open, event, categories, onClose, onSaved }) {
           <DrawerField label="Registration deadline" type="datetime-local" value={form.registration_deadline} onChange={(v) => setValue('registration_deadline', v)} error={errors.registration_deadline} />
           <DrawerField label="Cancellation deadline" type="datetime-local" value={form.cancellation_deadline} onChange={(v) => setValue('cancellation_deadline', v)} error={errors.cancellation_deadline} />
         </form>
-        <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4"><button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Cancel</button><button onClick={submit} disabled={saving} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/15 hover:bg-indigo-700 disabled:opacity-60">{saving ? 'Saving...' : event ? 'Save changes' : 'Create event'}<ArrowRight className="h-4 w-4" /></button></div>
-      </aside>
-    </div>
+    </Drawer>
   )
 }
 
@@ -713,6 +745,8 @@ function OrganizerPlaceholder() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [drawer, setDrawer] = useState({ open: false, event: null })
+  const [statusBusyId, setStatusBusyId] = useState(null)
+  const [closeTarget, setCloseTarget] = useState(null)
 
   const load = () => Promise.all([api.get('/organizer/events'), api.get('/categories')])
     .then(([eventRes, categoryRes]) => { setEvents(eventRes.data); setCategories(categoryRes.data) })
@@ -727,11 +761,14 @@ function OrganizerPlaceholder() {
   }
 
   const updateStatus = async (event, status) => {
+    setStatusBusyId(event.id)
     try {
       const { data } = await api.patch(`/organizer/events/${event.id}/status`, { status })
       setEvents((old) => old.map((item) => item.id === event.id ? { ...item, ...data.event } : item))
+      setCloseTarget(null)
       push(status === 'published' ? 'Event published.' : status === 'closed' ? 'Event closed.' : 'Event moved to draft.')
     } catch (error) { push(error.response?.data?.message || 'Status could not be changed.', 'error') }
+    finally { setStatusBusyId(null) }
   }
 
   const totals = events.reduce((sum, event) => ({
@@ -746,12 +783,10 @@ function OrganizerPlaceholder() {
         <button onClick={() => setDrawer({ open: true, event: null })} className="flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-lg shadow-indigo-600/15 hover:bg-indigo-700"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Create event</span></button>
       </div>
       <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          ['Total Events', events.length, Building2, 'text-indigo-600 bg-indigo-50'],
-          ['Published Events', events.filter((event) => event.status === 'published').length, CalendarDays, 'text-emerald-600 bg-emerald-50'],
-          ['Confirmed', totals.confirmed, UserCheck, 'text-sky-600 bg-sky-50'],
-          ['Waitlisted', totals.waitlisted, Timer, 'text-amber-700 bg-amber-50'],
-        ].map(([label, value, Icon, style]) => <div key={label} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5"><div className="flex items-center justify-between"><p className="text-xs font-bold text-slate-500">{label}</p><span className={`grid h-9 w-9 place-items-center rounded-xl ${style.split(' ').slice(1).join(' ')}`}><Icon className={`h-4 w-4 ${style.split(' ')[0]}`} /></span></div><p className="mt-3 font-display text-2xl font-extrabold text-slate-950">{value}</p></div>)}
+        <StatCard icon={Building2} label="Total Events" value={events.length} />
+        <StatCard icon={CalendarDays} label="Published Events" value={events.filter((event) => event.status === 'published').length} tone="success" />
+        <StatCard icon={UserCheck} label="Confirmed" value={totals.confirmed} tone="success" />
+        <StatCard icon={Timer} label="Waitlisted" value={totals.waitlisted} tone="warning" />
       </div>
       <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="hidden grid-cols-[minmax(240px,1.6fr)_130px_150px_170px_220px] gap-4 border-b border-slate-200 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 lg:grid"><span>Event</span><span>Date</span><span>Capacity</span><span>Status</span><span className="text-right">Actions</span></div>
@@ -764,12 +799,21 @@ function OrganizerPlaceholder() {
               <div><div className="mb-2 flex items-center gap-2"><EventStatusBadge status={event.status} /><span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700">{event.category?.name || 'Event'}</span></div><h3 className="font-display text-sm font-extrabold text-slate-950">{event.title}</h3><p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><MapPin className="h-3.5 w-3.5" />{event.location}</p></div>
               <div className="text-xs font-bold text-slate-700">{formatDate(event.event_date)}<p className="mt-1 font-medium text-slate-400">{new Date(event.event_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p></div>
               <div><div className="flex justify-between text-[11px]"><span className="font-bold text-slate-600">{confirmed} / {event.capacity}</span>{waitlisted > 0 && <span className="font-bold text-amber-700">{waitlisted} waitlist</span>}</div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${percent}%` }} /></div></div>
-              <div className="flex flex-wrap items-center gap-2"><EventStatusBadge status={event.status} />{event.status === 'draft' && <button onClick={() => updateStatus(event, 'published')} className="text-xs font-bold text-emerald-700 hover:text-emerald-800">Publish</button>}{event.status === 'published' && <button onClick={() => updateStatus(event, 'closed')} className="text-xs font-bold text-rose-600 hover:text-rose-700">Close Event</button>}{event.status === 'closed' && <button onClick={() => updateStatus(event, 'draft')} className="text-xs font-bold text-slate-600 hover:text-slate-800">Move to Draft</button>}</div>
+              <div className="flex flex-wrap items-center gap-2"><EventStatusBadge status={event.status} />{event.status === 'draft' && <button disabled={statusBusyId === event.id} onClick={() => updateStatus(event, 'published')} className="text-xs font-bold text-emerald-700 hover:text-emerald-800 disabled:opacity-50">{statusBusyId === event.id ? 'Publishing...' : 'Publish'}</button>}{event.status === 'published' && <button disabled={statusBusyId === event.id} onClick={() => setCloseTarget(event)} className="text-xs font-bold text-rose-600 hover:text-rose-700 disabled:opacity-50">Close Event</button>}{event.status === 'closed' && <button disabled={statusBusyId === event.id} onClick={() => updateStatus(event, 'draft')} className="text-xs font-bold text-slate-600 hover:text-slate-800 disabled:opacity-50">{statusBusyId === event.id ? 'Updating...' : 'Move to Draft'}</button>}</div>
               <div className="flex flex-wrap justify-start gap-2 lg:justify-end"><Link to={`/organizer/events/${event.id}/registrants`} className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-600"><UserCheck className="h-3.5 w-3.5" />Registrants</Link><button onClick={() => setDrawer({ open: true, event })} className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-600"><Pencil className="h-3.5 w-3.5" />Edit</button></div>
             </div>
           }) : <div className="grid min-h-72 place-items-center text-center"><div><CalendarDays className="mx-auto h-10 w-10 text-slate-300" /><h3 className="mt-4 font-display text-lg font-extrabold">No events yet</h3><button onClick={() => setDrawer({ open: true, event: null })} className="mt-3 text-sm font-bold text-indigo-600">Create your first event</button></div></div>}
       </div>
       <EventDrawer open={drawer.open} event={drawer.event} categories={categories} onClose={() => setDrawer({ open: false, event: null })} onSaved={saved} />
+      <ConfirmDialog
+        open={!!closeTarget}
+        onClose={() => setCloseTarget(null)}
+        onConfirm={() => closeTarget && updateStatus(closeTarget, 'closed')}
+        title="Close this event?"
+        description="Closing stops new registrations and clearly marks the event as unavailable."
+        confirmLabel="Close event"
+        busy={!!closeTarget && statusBusyId === closeTarget.id}
+      />
     </main>
   )
 }
@@ -835,7 +879,7 @@ function RegistrantPage() {
       <Link to="/organizer" className="mb-5 inline-flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-indigo-600"><ArrowRight className="h-4 w-4 rotate-180" /> Organizer Studio</Link>
       <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-          <div><div className="mb-3 flex items-center gap-2">{event && <EventStatusBadge status={event.status} />}<span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700">{event?.category?.name || 'Campus Event'}</span></div><h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-950">{event?.title || 'Event registrants'}</h1><div className="mt-3 flex flex-wrap gap-4 text-xs font-semibold text-slate-500">{event && <><span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{dateTime(event.event_date)}</span><span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{event.location}</span></>}</div></div>
+          <div><div className="mb-3 flex items-center gap-2">{event && <EventStatusBadge status={event.status} />}<span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700">{event?.category?.name || 'Community Event'}</span></div><h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-950">{event?.title || 'Event guests'}</h1><div className="mt-3 flex flex-wrap gap-4 text-xs font-semibold text-slate-500">{event && <><span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{dateTime(event.event_date)}</span><span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{event.location}</span></>}</div></div>
           <div className="grid grid-cols-3 gap-2">
             {[['Confirmed', confirmedCount, 'text-emerald-700 bg-emerald-50'], ['Waitlist', waitlistedCount, 'text-amber-700 bg-amber-50'], ['Checked in', checkedInCount, 'text-indigo-700 bg-indigo-50']].map(([label, value, style]) => <div key={label} className={`min-w-24 rounded-xl px-3 py-2 text-center ${style}`}><p className="text-lg font-extrabold">{value}</p><p className="text-[10px] font-bold uppercase">{label}</p></div>)}
           </div>
@@ -843,7 +887,7 @@ function RegistrantPage() {
       </div>
       <div className="mt-6 rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-200 p-5 md:flex-row md:items-center md:justify-between">
-          <label className="relative w-full md:max-w-sm"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or email..." className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50" /></label>
+          <label className="relative w-full md:max-w-sm"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or email..." className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-10 text-sm outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50" />{search && <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-slate-400 hover:bg-slate-100" aria-label="Clear attendee search"><X className="h-4 w-4" /></button>}</label>
           <div className="flex gap-2 overflow-x-auto">{['All', 'Confirmed', 'Waitlisted'].map((item) => <button key={item} onClick={() => setFilter(item)} className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-bold ${filter === item ? 'bg-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-600 hover:border-indigo-200'}`}>{item}</button>)}</div>
         </div>
         {visible.length ? <div className="overflow-x-auto">
@@ -857,7 +901,7 @@ function RegistrantPage() {
               </tr>
             })}</tbody>
           </table>
-        </div> : <div className="grid min-h-72 place-items-center text-center"><div><Users className="mx-auto h-10 w-10 text-slate-300" /><h3 className="mt-4 font-display text-lg font-extrabold text-slate-900">No registrants found</h3><p className="mt-2 text-sm text-slate-500">Try changing your search or status filter.</p></div></div>}
+        </div> : <EmptyState icon={Users} title="No registrants found" description="Try changing your search or status filter." />}
       </div>
     </main>
   )
