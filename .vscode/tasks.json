@@ -1,0 +1,82 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Install Laravel dependencies",
+			"type": "shell",
+			"command": "C:\\Users\\sg\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+			"args": [
+				"run",
+				"--rm",
+				"-v",
+				"D:\\NexBuild_CampusEventRegistration\\backend:/app",
+				"-w",
+				"/app",
+				"composer:2",
+				"install",
+				"--no-interaction"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Install Laravel dependencies with override",
+			"type": "shell",
+			"command": "C:\\Users\\sg\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+			"args": [
+				"run",
+				"--rm",
+				"-v",
+				"D:\\NexBuild_CampusEventRegistration\\backend:/app",
+				"-w",
+				"/app",
+				"composer:2",
+				"install",
+				"--no-interaction",
+				"--no-security-blocking"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Install Laravel API scaffolding",
+			"type": "shell",
+			"command": "C:\\Users\\sg\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+			"args": [
+				"run",
+				"--rm",
+				"-v",
+				"D:\\NexBuild_CampusEventRegistration\\backend:/app",
+				"-w",
+				"/app",
+				"composer:2",
+				"php",
+				"artisan",
+				"install:api"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Retry Composer dependency install",
+			"type": "shell",
+			"command": "C:\\Users\\sg\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe",
+			"args": [
+				"run",
+				"--rm",
+				"-v",
+				"D:\\NexBuild_CampusEventRegistration\\backend:/app",
+				"-w",
+				"/app",
+				"composer:2",
+				"install",
+				"--no-interaction",
+				"--no-security-blocking",
+				"--no-progress",
+				"-vvv"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
