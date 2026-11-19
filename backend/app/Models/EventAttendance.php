@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['event_id', 'user_id', 'attended', 'checked_in_at'])]
 class EventAttendance extends Model
 {
+    protected $table = 'event_attendance';
+
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
