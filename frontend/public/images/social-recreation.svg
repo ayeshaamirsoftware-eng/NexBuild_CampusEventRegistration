@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Social recreation event</title><desc id="desc">Friends enjoying an outdoor community gathering</desc>
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#38bdf8"/><stop offset=".62" stop-color="#bae6fd"/><stop offset="1" stop-color="#d9f99d"/></linearGradient><linearGradient id="grass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#65a30d"/><stop offset="1" stop-color="#365314"/></linearGradient></defs>
+  <rect width="1200" height="675" fill="url(#sky)"/>
+  <circle cx="970" cy="125" r="78" fill="#fef3c7"/>
+  <path d="M0 400Q180 310 360 400T720 400T1080 400T1200 380V675H0Z" fill="url(#grass)" opacity=".92"/>
+  <g fill="#f8fafc" opacity=".95"><rect x="280" y="170" width="640" height="18" rx="9"/><rect x="310" y="188" width="12" height="220"/><rect x="878" y="188" width="12" height="220"/><path d="M330 188H868L820 330H378Z" opacity=".18"/></g>
+  <g>
+    <circle cx="455" cy="430" r="58" fill="#312e81"/><circle cx="600" cy="410" r="58" fill="#f97316"/><circle cx="745" cy="430" r="58" fill="#0f766e"/>
+    <path d="M390 520Q455 450 520 520V610H390Z" fill="#6366f1"/><path d="M535 500Q600 430 665 500V610H535Z" fill="#fb923c"/><path d="M680 520Q745 450 810 520V610H680Z" fill="#14b8a6"/>
+  </g>
+  <g fill="#fef9c3"><circle cx="180" cy="500" r="16"/><circle cx="215" cy="470" r="12"/><circle cx="1030" cy="500" r="16"/><circle cx="995" cy="470" r="12"/></g>
+</svg>

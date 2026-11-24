@@ -1,30 +1,36 @@
-# NexBuild Community Event Registration
+# Campus Event Registration System
 
-NexBuild is a full-stack community event platform built with Laravel 11 and React. It supports member discovery and registration, waitlists, organizer event management, registrant rosters, and attendance check-in.
+A full-stack campus event management and seat registration platform built with Laravel 11 and React. Students can browse upcoming events, reserve seats, join waitlists when events reach capacity, and manage registrations. Organizers can manage events, review attendee rosters, and record event check-ins.
+
+## Tech Stack
+
+- **Backend:** PHP 8.3, Laravel 11, Laravel Sanctum token authentication, MySQL
+- **Frontend:** React, Vite, React Router, Axios, Tailwind CSS v4, Lucide icons
+
+## Project Structure
+
+```text
+backend/     Laravel REST API, migrations, seeders, and feature tests
+frontend/    React + Vite single-page client
+README.md    Setup and project documentation
+```
 
 ## Requirements
 
-- Windows with Laragon or another PHP/MySQL development environment
-- PHP 8.2+
-- Composer
-- Node.js 20+
+- Windows with Laragon or another PHP/MySQL environment
+- PHP 8.2 or newer and Composer
+- Node.js and npm
 - MySQL
 
-## Backend Setup
+## Setup
 
-1. Start MySQL from Laragon.
-2. Create a database named `campus_events`.
-3. Open a terminal in `backend/` and install dependencies:
+### 1. Configure the database
 
-```powershell
-composer install
-cp .env.example .env
-php artisan key:generate
-```
+Start MySQL in Laragon and create a database named `campus_events`.
 
-4. Confirm these values in `backend/.env`:
+In `backend/.env`, configure the database connection:
 
-```text
+```dotenv
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -33,64 +39,95 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-5. Create and seed the database:
+### 2. Start the Laravel API
+
+In a PowerShell terminal:
 
 ```powershell
-php artisan migrate:fresh --seed
+Set-Location .\backend
+composer install
+php artisan key:generate
+php artisan migrate --seed
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-The API is available at `http://127.0.0.1:8000/api`.
+The API base URL is `http://127.0.0.1:8000/api`.
 
-## Frontend Setup
+To reset the database and reseed all sample data, run `php artisan migrate:fresh --seed`. **This deletes existing database records.**
 
-Open a separate terminal in `frontend/`:
+### 3. Start the React client
+
+In a second PowerShell terminal:
 
 ```powershell
+Set-Location .\frontend
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The frontend also supports `http://127.0.0.1:5173`.
+Open the Vite URL shown in the terminal, usually `http://localhost:5173`. The API CORS configuration also allows `localhost` and `127.0.0.1` on ports `5173` and `5174`.
 
 ## Demo Accounts
 
 | Role | Email | Password |
 |---|---|---|
 | Organizer | `organizer@campus.edu` | `password` |
-| Member/Explorer | `student1@campus.edu` | `password` |
+| Student | `student1@campus.edu` | `password` |
 
-The student demo seed includes a confirmed registration, a waitlisted registration, and a cancelled registration.
+Seed data includes sample events and confirmed, waitlisted, and cancelled registrations for the student account.
 
-## Main Features
+## Features
 
-- Sanctum login and registration with role-based route protection
-- Member event discovery, search, category filtering, sorting, and capacity indicators
-- Event detail pages with deadlines and sticky booking summaries
-- Confirmed registration, waitlist entry, and cancellation
-- Automatic promotion of the oldest waitlisted member after eligible cancellation
-- Upcoming/past registration views with status filtering
-- Light, Dark, and live System themes
-- Organizer event dashboard and KPIs
-- Create/edit event slide-over with inline and API validation
-- Publish, close, and draft event status controls
-- Registrant search, status filtering, and live attendance check-in
-- Loading skeletons, empty states, confirmation dialogs, and toast feedback
+- Token-based login and registration with student and organizer role protection
+- Event discovery with search, category filters, sorting, and seat availability
+- Event details, registration deadlines, cancellation policies, and responsive local event imagery
+- Seat confirmation, waitlist registration, and cancellation
+- Automatic promotion of the oldest waitlisted student when an eligible confirmed registration is cancelled
+- Student registration list with status filters and upcoming/past grouping
+- Organizer dashboard with event and registration KPIs
+- Create and edit events, with client and API validation
+- Publish, close, and draft event status management
+- Attendee roster with search, status filters, and attendance check-in timestamps
+- Light, dark, and system themes
+- Responsive layouts, loading states, empty states, confirmation dialogs, and toast notifications
 
-## Verification
+## API Routes
 
-From `backend/`:
+Public routes:
+
+- `POST /api/register`
+- `POST /api/login`
+- `GET /api/categories`
+- `GET /api/events`
+- `GET /api/events/{id}`
+
+Authenticated student routes:
+
+- `GET /api/my-registrations`
+- `POST /api/events/{id}/register`
+- `POST /api/events/{id}/cancel`
+
+Authenticated organizer routes:
+
+- `GET /api/organizer/events`
+- `POST /api/organizer/events`
+- `PUT /api/organizer/events/{id}`
+- `PATCH /api/organizer/events/{id}/status`
+- `GET /api/organizer/events/{id}/registrants`
+- `POST /api/organizer/events/{id}/attendance`
+
+## Run Tests and Build
+
+Backend tests:
 
 ```powershell
+Set-Location .\backend
 php artisan test
 ```
 
-From `frontend/`:
+Frontend production build:
 
 ```powershell
+Set-Location .\frontend
 npm run build
 ```
-
-## API Behavior
-
-The backend is protected by Laravel Sanctum and role middleware. Registration, waitlist promotion, cancellation, organizer event management, and attendance actions continue to use the existing `/api` routes and database schema.

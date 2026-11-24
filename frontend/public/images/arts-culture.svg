@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Arts and culture event</title><desc id="desc">A vibrant theater and arts stage</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#17152e"/><stop offset=".5" stop-color="#4c1d95"/><stop offset="1" stop-color="#db2777"/></linearGradient><linearGradient id="light" x1=".5" y1="0" x2=".5" y2="1"><stop stop-color="#fdf4ff" stop-opacity=".9"/><stop offset="1" stop-color="#c084fc" stop-opacity="0"/></linearGradient></defs>
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <circle cx="220" cy="130" r="210" fill="#f472b6" opacity=".12"/>
+  <circle cx="930" cy="180" r="260" fill="#8b5cf6" opacity=".14"/>
+  <path d="M150 675V390L600 260L1050 390V675Z" fill="#111827"/>
+  <path d="M600 260L150 390V675H600Z" fill="#1e1b4b" opacity=".9"/>
+  <path d="M600 260L1050 390V675H600Z" fill="#312e81" opacity=".9"/>
+  <path d="M600 260L370 675H830Z" fill="url(#light)" opacity=".55"/>
+  <rect x="510" y="390" width="180" height="210" rx="90" fill="#f8fafc" opacity=".14"/>
+  <circle cx="600" cy="405" r="48" fill="#fbcfe8"/>
+  <path d="M560 510Q600 470 640 510V610H560Z" fill="#f8fafc"/>
+  <g fill="#f472b6"><circle cx="255" cy="500" r="10"/><circle cx="315" cy="470" r="8"/><circle cx="885" cy="500" r="10"/><circle cx="825" cy="470" r="8"/></g>
+</svg>

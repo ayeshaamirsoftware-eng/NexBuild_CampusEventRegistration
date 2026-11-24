@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { Component, createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import {
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { ThemeToggle } from './components/ui/ThemeToggle'
 import { Button, Card, EmptyState, ConfirmDialog, Drawer, StatCard, ToastIcon } from './components/ui'
+import { getEventImage, normalizeArray, normalizeObject } from './utils/eventMedia'
 
 const API_URL = 'http://127.0.0.1:8000/api'
 const api = axios.create({ baseURL: API_URL })
@@ -18,7 +19,10 @@ const ToastContext = createContext(null)
 
 function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('nexbuild_user')) } catch { return null }
+    try {
+      const saved = JSON.parse(localStorage.getItem('nexbuild_user'))
+      return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : null
+    } catch { return null }
   })
   const [loading, setLoading] = useState(false)
 
@@ -143,8 +147,8 @@ function Navbar() {
               <ThemeToggle compact />
               <button className="grid h-9 w-9 place-items-center rounded-full text-text-muted hover:bg-surface hover:text-text-primary" aria-label="Notifications"><Bell className="h-5 w-5" /></button>
               <div className="text-right">
-                <p className="text-sm font-bold text-text-primary">{user.name}</p>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-brand">{user.role === 'student' ? 'Member' : user.role}</p>
+                <p className="text-sm font-bold text-text-primary">{user?.name || 'Account'}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-brand">{user?.role === 'student' ? 'Member' : user?.role || 'Member'}</p>
               </div>
               <button onClick={signOut} className="grid h-9 w-9 place-items-center rounded-lg border border-border text-text-muted hover:border-danger/30 hover:bg-danger/10 hover:text-danger" aria-label="Sign out"><LogOut className="h-4 w-4" /></button>
             </>
@@ -279,19 +283,33 @@ function Field({ label, type = 'text', value, onChange, error, placeholder, trai
   )
 }
 
-const formatDate = (value, options = {}) => value ? new Intl.DateTimeFormat('en-US', {
-  month: 'short', day: 'numeric', year: 'numeric', ...options,
-}).format(new Date(value)) : ''
+const formatDate = (value, options = {}) => {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', ...options,
+  }).format(date)
+}
 
-const dateTime = (value) => value ? new Intl.DateTimeFormat('en-US', {
-  weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-}).format(new Date(value)) : ''
+const dateTime = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  }).format(date)
+}
+
+function handleEventMediaError(event) {
+  if (!event.currentTarget.src.endsWith('/images/campus-default.jpg')) {
+    event.currentTarget.src = '/images/campus-default.jpg'
+  }
+}
 
 function StatusPill({ event }) {
-  if (new Date(event.registration_deadline) < new Date()) {
+  if (event?.registration_deadline && new Date(event.registration_deadline) < new Date()) {
     return <span className="inline-flex items-center rounded-full border border-rose-200/70 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700">Registration Closed</span>
   }
-  if (event.available_seats <= 0) {
+  if (Number(event?.available_seats) <= 0) {
     return <span className="inline-flex items-center rounded-full border border-amber-200/80 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Waitlist Active</span>
   }
   return <span className="inline-flex items-center rounded-full border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Spots Open</span>
@@ -309,30 +327,40 @@ function SkeletonCard() {
 }
 
 function EventCard({ event }) {
-  const filled = event.capacity ? Math.max(0, event.capacity - event.available_seats) : 0
-  const percent = event.capacity ? Math.round((filled / event.capacity) * 100) : 0
+  const media = getEventImage(event)
+  const capacity = Number(event?.capacity) || 0
+  const availableSeats = Number(event?.available_seats) || 0
+  const filled = capacity ? Math.max(0, capacity - availableSeats) : 0
+  const percent = capacity ? Math.min(100, Math.round((filled / capacity) * 100)) : 0
+  const eventDate = event?.event_date
   return (
-    <Link to={`/events/${event.id}`} className="group overflow-hidden rounded-2xl border border-border/75 bg-surface-raised shadow-soft transition duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-raised">
-      <div className="flex h-[72px] items-center justify-between border-b border-border/70 bg-surface px-5">
-        <span className="rounded-full border border-brand/20 bg-brand/10 px-2.5 py-1 text-[11px] font-bold text-brand">{event.category?.name || 'Community Event'}</span>
-        <div className="flex items-baseline gap-1.5 text-text-primary"><span className="text-xs font-bold uppercase text-text-muted">{formatDate(event.event_date, { year: undefined }).split(' ')[0]}</span><strong className="tabular-nums font-display text-xl leading-none">{new Date(event.event_date).getDate()}</strong></div>
+    <Link to={`/events/${event?.id || ''}`} className="group overflow-hidden rounded-2xl border border-border/75 bg-surface-raised shadow-soft transition duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-raised">
+      <div className="relative h-44 w-full overflow-hidden">
+        <img src={media} onError={handleEventMediaError} alt="" className="h-44 w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+        <div className="absolute left-4 top-4">
+          <span className="rounded-full border border-white/20 bg-slate-950/35 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md">{event?.category?.name || 'Community Event'}</span>
+        </div>
+        <div className="absolute bottom-4 right-4 grid h-12 w-12 place-items-center rounded-xl border border-white/20 bg-slate-950/35 text-center text-white backdrop-blur-md">
+          <div><span className="block text-[9px] font-bold uppercase">{eventDate ? formatDate(eventDate, { year: undefined }).split(' ')[0] : 'TBD'}</span><strong className="tabular-nums font-display text-lg leading-none">{eventDate && !Number.isNaN(new Date(eventDate).getTime()) ? new Date(eventDate).getDate() : '—'}</strong></div>
+        </div>
       </div>
       <div className="p-5">
         <div className="flex items-center justify-between gap-3">
-          <StatusPill event={event} />
+          <StatusPill event={event || {}} />
           <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-indigo-600" />
         </div>
-        <h3 className="mt-3 font-display text-lg font-extrabold leading-snug text-text-primary">{event.title}</h3>
-        <p className="mt-2 line-clamp-2 text-sm leading-6 text-text-muted">{event.description}</p>
+        <h3 className="mt-3 font-display text-lg font-extrabold leading-snug text-text-primary">{event?.title || 'Untitled event'}</h3>
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-text-muted">{event?.description || 'Event details coming soon.'}</p>
         <div className="mt-4 space-y-2 text-xs font-semibold text-text-muted">
-          <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-brand" /><span className="tabular-nums">{dateTime(event.event_date)}</span></div>
-          <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-brand" /><span>{event.location}</span></div>
-          <div className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-brand" /><span>{event.organizer?.name || 'Community Hosts'}</span></div>
+          <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-brand" /><span className="tabular-nums">{eventDate ? dateTime(eventDate) : 'Date to be announced'}</span></div>
+          <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-brand" /><span>{event?.location || 'Location to be announced'}</span></div>
+          <div className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-brand" /><span>{event?.organizer?.name || 'Community Hosts'}</span></div>
         </div>
         <div className="mt-5">
-          <div className="mb-2 flex justify-between text-xs tabular-nums"><span className="font-semibold text-text-muted"><strong className="text-text-primary">{event.available_seats}</strong> remaining</span><span className="font-bold text-text-muted">{percent}% filled</span></div>
+          <div className="mb-2 flex justify-between text-xs tabular-nums"><span className="font-semibold text-text-muted"><strong className="text-text-primary">{availableSeats}</strong> remaining</span><span className="font-bold text-text-muted">{percent}% filled</span></div>
           <div className="h-2 overflow-hidden rounded-full bg-surface"><div className="h-full rounded-full bg-brand transition-all" style={{ width: `${percent}%` }} /></div>
-          <p className="mt-2 text-[11px] text-text-muted tabular-nums">{filled} confirmed · {event.capacity} total seats</p>
+          <p className="mt-2 text-[11px] text-text-muted tabular-nums">{filled} confirmed · {capacity || '—'} total seats</p>
         </div>
       </div>
     </Link>
@@ -341,27 +369,44 @@ function EventCard({ event }) {
 
 function Discover() {
   const { user } = useAuth()
+  const push = useToast()
   const [events, setEvents] = useState([])
   const [categories, setCategories] = useState([])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [sort, setSort] = useState('soonest')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
+    let active = true
     Promise.all([api.get('/categories'), api.get('/events')])
-      .then(([categoryRes, eventRes]) => { setCategories(categoryRes.data); setEvents(eventRes.data) })
-      .catch(() => setEvents([]))
-      .finally(() => setLoading(false))
+      .then(([categoryRes, eventRes]) => {
+        if (!active) return
+        setCategories(normalizeArray(categoryRes.data).filter((item) => item && typeof item === 'object'))
+        setEvents(normalizeArray(eventRes.data).filter((item) => item && typeof item === 'object'))
+      })
+      .catch((error) => {
+        if (!active) return
+        setLoadError(true)
+        push(error.response?.data?.message || 'Could not load events. Please try again.', 'error')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
   }, [])
 
   const filtered = useMemo(() => events.filter((event) => {
-    const matchesSearch = !search || `${event.title} ${event.description} ${event.location}`.toLowerCase().includes(search.toLowerCase())
+    const matchesSearch = !search || `${event.title || ''} ${event.description || ''} ${event.location || ''}`.toLowerCase().includes(search.toLowerCase())
     const matchesCategory = !category || event.category_id === Number(category)
     return matchesSearch && matchesCategory
   }).sort((a, b) => sort === 'seats'
-    ? Number(b.available_seats) - Number(a.available_seats)
-    : new Date(a.event_date) - new Date(b.event_date)), [events, search, category, sort])
+    ? (Number(b.available_seats) || 0) - (Number(a.available_seats) || 0)
+    : (new Date(a.event_date || 0).getTime() || 0) - (new Date(b.event_date || 0).getTime() || 0)), [events, search, category, sort])
+
+  const firstName = typeof user?.name === 'string' ? user.name.trim().split(/\s+/)[0] : 'Explorer'
+  const seatsLeft = events.reduce((sum, event) => sum + (Number(event.available_seats) || 0), 0)
 
   return (
     <main className="min-h-[calc(100vh-72px)]">
@@ -370,11 +415,11 @@ function Discover() {
           <div className="grid items-end gap-8 lg:grid-cols-[1fr_auto]">
             <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-brand">Discover</p>
-              <h1 className="font-display text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">Good to see you, {user?.name?.split(' ')[0] === 'Student' ? 'Explorer' : user?.name?.split(' ')[0] || 'Explorer'}.</h1>
+              <h1 className="font-display text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">Good to see you, {firstName === 'Student' ? 'Explorer' : firstName}.</h1>
               <p className="mt-3 text-sm text-text-muted sm:text-base">Explore what’s happening around your community this season.</p>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              {[['Live events', events.length], ['Categories', categories.length], ['Seats left', events.reduce((sum, event) => sum + event.available_seats, 0)]].map(([label, value]) => (
+              {[['Live events', events.length], ['Categories', categories.length], ['Seats left', seatsLeft]].map(([label, value]) => (
                 <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center"><p className="font-display text-xl font-extrabold text-slate-950">{value}</p><p className="mt-0.5 text-[11px] font-semibold text-slate-500">{label}</p></div>
               ))}
             </div>
@@ -403,6 +448,7 @@ function Discover() {
           ))}
         </div>
         {loading ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{[1,2,3].map((item) => <SkeletonCard key={item} />)}</div>
+          : loadError ? <EmptyState icon={AlertCircle} title="Events didn’t load" description="Check your connection and try again." action={<Button onClick={() => window.location.reload()}>Reload</Button>} />
           : filtered.length ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{filtered.map((event) => <EventCard key={event.id} event={event} />)}</div>
           : <EmptyState
               icon={Search}
@@ -429,7 +475,7 @@ function EventDetail() {
   const [busy, setBusy] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const load = () => api.get(`/events/${id}`).then((res) => setEvent(res.data)).finally(() => setLoading(false))
+  const load = () => api.get(`/events/${id}`).then((res) => setEvent(normalizeObject(res.data, 'event'))).finally(() => setLoading(false))
   useEffect(() => { setLoading(true); load().catch(() => push('Unable to load this event.', 'error')) }, [id])
 
   const register = async () => {
@@ -469,10 +515,15 @@ function EventDetail() {
       <Link to="/" className="mb-5 inline-flex items-center gap-1 text-sm font-bold text-slate-500 hover:text-indigo-600"><ArrowRight className="h-4 w-4 rotate-180" /> All events</Link>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div>
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950">
-            <div className="relative h-72 bg-[radial-gradient(circle_at_75%_20%,rgba(129,140,248,.55),transparent_25%),linear-gradient(135deg,#172554,#4f46e5)] sm:h-80">
-              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-              <div className="absolute left-6 top-6 sm:left-8 sm:top-8"><span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">{event.category?.name}</span></div>
+          <div className="relative h-64 w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-950 dark:border-slate-800 sm:h-80">
+            <img src={getEventImage(event)} onError={(e) => { e.currentTarget.src = '/images/campus-default.jpg' }} alt={event.title} className="h-full w-full object-cover object-center" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/25 to-transparent" />
+            <div className="absolute left-6 top-6 sm:left-8 sm:top-8">
+              <span className="rounded-full border border-white/20 bg-slate-950/35 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">{event.category?.name || 'Community Event'}</span>
+            </div>
+            <div className="absolute bottom-5 left-6 right-6 text-white sm:left-8 sm:right-8">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/75">{formatDate(event.event_date)}</p>
+              <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-white/90"><MapPin className="h-4 w-4" />{event.location}</p>
             </div>
           </div>
           <div className="mt-7 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
@@ -533,8 +584,19 @@ function MyRegistrations() {
   const [target, setTarget] = useState(null)
   const [cancelling, setCancelling] = useState(false)
 
-  const load = () => api.get('/my-registrations').then((res) => setRegistrations(res.data)).finally(() => setLoading(false))
-  useEffect(() => { load().catch(() => push('Unable to load registrations.', 'error')) }, [])
+  const load = () => api.get('/my-registrations').then((res) => setRegistrations(
+    normalizeArray(res.data).filter((item) => item && typeof item === 'object'),
+  )).finally(() => setLoading(false))
+  useEffect(() => {
+    let active = true
+    api.get('/my-registrations')
+      .then((res) => {
+        if (active) setRegistrations(normalizeArray(res.data).filter((item) => item && typeof item === 'object'))
+      })
+      .catch(() => { if (active) push('Unable to load registrations.', 'error') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
 
   const cancel = async () => {
     setCancelling(true)
@@ -749,7 +811,10 @@ function OrganizerPlaceholder() {
   const [closeTarget, setCloseTarget] = useState(null)
 
   const load = () => Promise.all([api.get('/organizer/events'), api.get('/categories')])
-    .then(([eventRes, categoryRes]) => { setEvents(eventRes.data); setCategories(categoryRes.data) })
+    .then(([eventRes, categoryRes]) => {
+      setEvents(normalizeArray(eventRes.data).filter((item) => item && typeof item === 'object'))
+      setCategories(normalizeArray(categoryRes.data).filter((item) => item && typeof item === 'object'))
+    })
     .finally(() => setLoading(false))
   useEffect(() => { load().catch(() => push('Unable to load organizer events.', 'error')) }, [])
 
@@ -831,8 +896,9 @@ function RegistrantPage() {
   useEffect(() => {
     Promise.all([api.get('/organizer/events'), api.get(`/organizer/events/${id}/registrants`)])
       .then(([eventRes, rosterRes]) => {
-        setEvent(eventRes.data.find((item) => item.id === Number(id)) || null)
-        setRegistrants(rosterRes.data)
+        const events = normalizeArray(eventRes.data).filter((item) => item && typeof item === 'object')
+        setEvent(events.find((item) => Number(item.id) === Number(id)) || null)
+        setRegistrants(normalizeArray(rosterRes.data).filter((item) => item && typeof item === 'object' && item.user && typeof item.user === 'object'))
       })
       .catch(() => push('Unable to load the event roster.', 'error'))
       .finally(() => setLoading(false))
@@ -907,19 +973,52 @@ function RegistrantPage() {
   )
 }
 
+class AppErrorBoundary extends Component {
+  state = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <main className="grid min-h-screen place-items-center bg-surface px-5 py-10">
+          <section className="w-full max-w-lg rounded-3xl border border-border bg-surface-raised p-8 text-center shadow-raised">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-danger/10"><AlertCircle className="h-7 w-7 text-danger" /></div>
+            <h1 className="mt-5 font-display text-2xl font-extrabold text-text-primary">Something didn’t load correctly</h1>
+            <p className="mt-2 text-sm leading-6 text-text-muted">Your session is safe. Reload the page or return to sign in and try again.</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Button variant="secondary" onClick={() => window.location.reload()}>Reload</Button>
+              <Button onClick={() => {
+                localStorage.removeItem('nexbuild_token')
+                localStorage.removeItem('nexbuild_user')
+                window.location.assign('/login')
+              }}>Back to Login</Button>
+            </div>
+          </section>
+        </main>
+      )
+    }
+    return this.props.children
+  }
+}
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <Routes>
-            <Route path="/login" element={<PublicOnly><AuthLayout mode="login" /></PublicOnly>} />
-            <Route path="/register" element={<PublicOnly><AuthLayout mode="register" /></PublicOnly>} />
-            <Route path="*" element={<AppShell />} />
-          </Routes>
-        </ToastProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <AppErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
+              <Route path="/login" element={<PublicOnly><AuthLayout mode="login" /></PublicOnly>} />
+              <Route path="/register" element={<PublicOnly><AuthLayout mode="register" /></PublicOnly>} />
+              <Route path="*" element={<AppShell />} />
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </AppErrorBoundary>
   )
 }
 
